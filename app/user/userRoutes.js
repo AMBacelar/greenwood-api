@@ -7,7 +7,6 @@ type User = {
 	email: String,
 	firstName: String,
 	lastName: String,
-	description: String,
 };
 
 
