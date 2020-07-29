@@ -1,1 +1,10 @@
-/node_modules/
+# Dependency directories
+node_modules/
+
+# production server output
+dist
+
+.DS_Store
+
+#.env file
+.env

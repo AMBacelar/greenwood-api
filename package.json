@@ -14,7 +14,8 @@
     "dotenv": "^8.2.0",
     "express": "^4.16.3",
     "graphql": "^15.3.0",
-    "neo4j-driver": "^1.6.2"
+    "neo4j-driver": "^1.6.2",
+    "neo4j-graphql-js": "^2.14.4"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
