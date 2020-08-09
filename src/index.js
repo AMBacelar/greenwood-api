@@ -30,7 +30,7 @@ const driver = neo4j.driver(
 );
 
 const initializeDatabase = (driver) => {
-  const initCypher = `CALL apoc.schema.assert({}, {User: ["userId"], Business: ["businessId"], Review: ["reviewId"], Category: ["name"]})`;
+  const initCypher = `CALL apoc.schema.assert({}, {User: ["userId"], Business: ["businessId"], Review: ["reviewId"], Series: ["seriesId"], Content: ["contentId"], Event: ["eventId"], Venue: ["venueId"], BusinessCategory: ["name"]})`;
 
   const executeQuery = (driver) => {
     const session = driver.session();
