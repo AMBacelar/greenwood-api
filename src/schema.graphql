@@ -140,12 +140,13 @@ type Venue {
   gallery: [String]!
   managedBy: [User] @relation(name: "MANAGES", direction: "IN")
   events: [Event]! @relation(name: "LOCATED_AT", direction: "IN")
+  reviews: [Review] @relation(name: "REVIEWS", direction: "IN")
   contact: Contact! @relation(name: "HAS_CONTACT", direction: "OUT")
 }
 
 type Review {
   reviewId: ID!
-  stars: Float
+  stars: Float!
   text: String
   date: DateTime
   item: Ownable @relation(name: "REVIEWS", direction: "OUT")
@@ -164,6 +165,24 @@ type RatingCount {
 }
 
 type Mutation {
+  userCreateReview(
+    stars: Float!
+    text: String
+    targetId: ID!
+    userId: ID!
+    nodeName: String!
+  ): Review
+    @cypher(
+      statement: """
+      CALL db.index.fulltext.queryNodes($nodeName, $targetId) YIELD node
+      match (u:User {userId: $userId})
+      create (u)-[x:WROTE]->(r:Review)-[:REVIEWS]->(node)
+      set r.stars = $stars
+      set r.text = $text
+      set r.reviewId = apoc.create.uuid()
+      return r
+      """
+    )
   mergeBusinessCategory(categories: [String!]!, businessId: ID!): Business
     @cypher(
       statement: "MATCH (b:Business {businessId: $businessId}) UNWIND $categories AS cat MERGE (c:BusinessCategory {name: cat}) MERGE (b)-[:IN_BUSINESS_CATEGORY]->(c) RETURN b"

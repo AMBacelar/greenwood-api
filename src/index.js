@@ -29,23 +29,22 @@ const driver = neo4j.driver(
   }
 );
 
-const initializeDatabase = (driver) => {
+const initializeDatabase = async (driver) => {
   const initCypher = `CALL apoc.schema.assert({}, {User: ["userId"], Business: ["businessId"], Review: ["reviewId"], Series: ["seriesId"], Content: ["contentId"], Event: ["eventId"], Venue: ["venueId"], BusinessCategory: ["name"]})`;
+  const ReviewableQuery = `CALL db.index.fulltext.createNodeIndex("Reviewable", ["Ownable"],["userId", "businessId", "reviewId", "seriesId", "contentId", "eventId", "venueId"])`;
 
-  const executeQuery = (driver) => {
-    const session = driver.session();
-    return session
-      .writeTransaction((tx) => tx.run(initCypher))
-      .then()
-      .finally(() => session.close());
-  };
-
-  executeQuery(driver).catch((error) => {
+  const session = driver.session();
+  try {
+    await session.writeTransaction((tx) => tx.run(initCypher));
+    await session.run(ReviewableQuery);
+  } catch (error) {
     console.error(
       'Database initialization failed to complete\n',
       error.message
     );
-  });
+  } finally {
+    session.close();
+  }
 };
 
 const init = async (driver) => {
