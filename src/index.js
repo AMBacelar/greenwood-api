@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const { ApolloServer, gql } = require('apollo-server-express');
-const neo4j = require('neo4j-driver').v1;
+const neo4j = require('neo4j-driver');
 const { makeAugmentedSchema } = require('neo4j-graphql-js');
 const { typeDefs } = require('./graphql-schema');
 
@@ -19,14 +19,11 @@ const schema = makeAugmentedSchema({
 });
 
 const driver = neo4j.driver(
-  process.env.NEO4J_URI || 'bolt://localhost:7687',
+  process.env.NEO4J_URI || 'neo4j://localhost:7687',
   neo4j.auth.basic(
     process.env.NEO4J_USER || 'neo4j',
     process.env.NEO4J_PASSWORD || 'neo4j'
-  ),
-  {
-    encrypted: process.env.NEO4J_ENCRYPTED ? 'ENCRYPTION_ON' : 'ENCRYPTION_OFF',
-  }
+  )
 );
 
 const initializeDatabase = async (driver) => {
@@ -35,9 +32,13 @@ const initializeDatabase = async (driver) => {
 
   const session = driver.session();
   try {
+    console.log('connecting to session');
+    await driver.verifyConnectivity();
     await session.writeTransaction((tx) => tx.run(initCypher));
     await session.run(ReviewableQuery);
+    console.log('Database initialized');
   } catch (error) {
+    console.log('oops');
     console.error(
       'Database initialization failed to complete\n',
       error.message
@@ -52,8 +53,6 @@ const init = async (driver) => {
 };
 
 const startServer = async () => {
-  init(driver);
-
   const server = new ApolloServer({
     context: { driver, neo4jDatabase: process.env.NEO4J_DATABASE },
     schema: schema,
@@ -66,6 +65,8 @@ const startServer = async () => {
   const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0';
 
   server.applyMiddleware({ app, path });
+
+  await init(driver);
 
   app.listen({ host, port, path }, () =>
     console.log(
