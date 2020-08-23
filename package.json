@@ -13,8 +13,12 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "graphql": "^15.3.0",
+    "jsonwebtoken": "^8.5.1",
+    "lodash": "^4.17.20",
     "neo4j-driver": "^4.1.1",
-    "neo4j-graphql-js": "^2.15.1"
+    "neo4j-graphql-js": "^2.15.1",
+    "randomcolor": "^0.6.2",
+    "slugify": "^1.4.5"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"

@@ -57,9 +57,11 @@ type Business {
   contact: Contact! @relation(name: "HAS_CONTACT", direction: "OUT")
   description: String
   displayImage: String
-  gallery: [String]!
+  gallery: [String]
   bannerImage: String
   bannerColour: String
+  dateCreated: DateTime
+  slug: String @neo4j_ignore
   avgStars: Float
     @cypher(
       statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
@@ -183,6 +185,7 @@ type Mutation {
       return r
       """
     )
+
   mergeBusinessCategory(categories: [String!]!, businessId: ID!): Business
     @cypher(
       statement: "MATCH (b:Business {businessId: $businessId}) UNWIND $categories AS cat MERGE (c:BusinessCategory {name: cat}) MERGE (b)-[:IN_BUSINESS_CATEGORY]->(c) RETURN b"
