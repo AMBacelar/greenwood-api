@@ -60,8 +60,8 @@ type Business {
   gallery: [String]
   bannerImage: String
   bannerColour: String
-  dateCreated: DateTime
-  slug: String @neo4j_ignore
+  dateCreated: Float
+  slug: String
   avgStars: Float
     @cypher(
       statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
@@ -156,7 +156,8 @@ type Review {
 }
 
 type BusinessCategory {
-  name: ID!
+  businessCategoryId: ID!
+  name: String!
   businesses: [Business]
     @relation(name: "IN_BUSINESS_CATEGORY", direction: "IN")
 }
@@ -166,7 +167,39 @@ type RatingCount {
   count: Int!
 }
 
+input BusinessInput {
+  userId: ID!
+  name: String!
+  description: String
+  displayImage: String
+  gallery: [String]
+  bannerImage: String
+  contact: ContactInput
+}
+
+input ContactInput {
+  address: [AddressInput]
+  telephone: [String]!
+  email: [String]!
+  socials: [SocialLinkInput]!
+}
+
+input AddressInput {
+  name: String
+  addressLine1: String!
+  addressLine2: String
+  postCode: String!
+  location: Point
+  showAddress: Boolean!
+}
+
+input SocialLinkInput {
+  platform: String!
+  account: String!
+}
+
 type Mutation {
+  userCreateBusiness(input: BusinessInput): Business
   userCreateReview(
     stars: Float!
     text: String

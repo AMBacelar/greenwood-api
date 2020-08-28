@@ -5,9 +5,11 @@ const { ApolloServer, gql } = require('apollo-server-express');
 const neo4j = require('neo4j-driver');
 const { makeAugmentedSchema } = require('neo4j-graphql-js');
 const { typeDefs } = require('./graphql-schema');
+const { resolvers } = require('./graphql-resolvers');
 
 const schema = makeAugmentedSchema({
   typeDefs,
+  resolvers,
   config: {
     query: {
       exclude: ['RatingCount'],

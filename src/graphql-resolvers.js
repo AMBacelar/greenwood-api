@@ -41,37 +41,47 @@ const runQuery = async (query, context, resolveInfo) => {
   let result;
 
   try {
-    result = await session.run(query);
+    result = await session.writeTransaction((tx) => tx.run(query));
     result = result.records[0].get(0);
   } finally {
     session.close();
   }
-  return result.properties[resolveInfo.fieldName];
+  return result.properties;
 };
 
 const resolvers = {
-  Business: {
-    bannerColour: (obj, args, context, resolveInfo) => randomColor(),
-    dateCreated: (obj, args, context, resolveInfo) => {
-      return Date.now();
+  Mutation: {
+    userCreateBusiness: async (obj, args, context, resolveInfo) => {
+      const {
+        userId,
+        name,
+        description,
+        displayImage,
+        gallery,
+        bannerImage,
+      } = args.input;
+      /**
+       * first, create the business object
+       * second, attack business to user object
+       * third, connect auxilliary objects IF they exist
+       */
+      const createBusiness = `
+       MATCH (u: User {userId: "${userId}"})
+       MERGE (b: Business:Contactable:Ownable:ContentMetaReference { name: "${name}", businessId: apoc.create.uuid(), description: "${description}", bannerColour: "${randomColor()}", slug: "${slugify(
+        name,
+        {
+          lower: true,
+          remove: /[*+~.()'"!:@]/g,
+        }
+      )}", dateCreated: toInteger(${Date.now()}) })<-[r:MANAGES]-(u)
+        RETURN b
+       `;
+      return await runQuery(createBusiness, context, resolveInfo);
     },
-    slug: async (obj, args, context, resolveInfo) => {
-      const field = 'businessId';
-      const node = 'Business';
-      const setSlug = `
-        MATCH (n: ${node} {${field}: "${obj[field]}"})
-        FOREACH (ignoreMe in CASE
-          WHEN exists(n.slug) THEN [1]
-            ELSE [] END | SET n.slug=n.slug)
-        FOREACH (ignoreMe in CASE
-          WHEN not(exists(n.slug)) THEN [1]
-            ELSE [] END | SET n.slug = "${slugify(obj.name, {
-              lower: true,
-              remove: /[*+~.()'"!:@]/g,
-            })}")
-        RETURN n
-      `;
-      return await runQuery(setSlug, context, resolveInfo);
+  },
+  Business: {
+    dateCreated: (obj, args, context, resolveInfo) => {
+      return Number(obj.dateCreated);
     },
   },
 };
