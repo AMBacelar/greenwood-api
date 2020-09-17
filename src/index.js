@@ -1,11 +1,57 @@
 require('dotenv').config();
 const express = require('express');
-const app = express();
+const cookieSession = require('cookie-session');
 const { ApolloServer, gql } = require('apollo-server-express');
 const neo4j = require('neo4j-driver');
 const { makeAugmentedSchema } = require('neo4j-graphql-js');
 const { typeDefs } = require('./graphql-schema');
 const { resolvers } = require('./graphql-resolvers');
+const passport = require('passport');
+require('./googleStrategy');
+
+const app = express();
+
+app.use(
+  cookieSession({
+    maxAge: 24 * 60 * 60 * 1000,
+    keys: [process.env.COOKIE_SESSION_KEY],
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, cb) => {
+  cb(null, user);
+});
+passport.deserializeUser((obj, cb) => {
+  cb(null, obj);
+});
+
+app.get('/', (req, res) => {
+  res.send(
+    `
+    root page, try /auth/google
+
+    current User:
+    ${JSON.stringify(req.user, null, 2)}
+    `
+  );
+});
+
+app.get(
+  '/auth/google',
+  passport.authenticate('google', { scope: ['email', 'profile'] }),
+  (req, res) => {}
+);
+
+app.get('/google_callback', passport.authenticate('google'), (req, res) => {
+  res.redirect('/');
+});
+app.get('/auth/logout', (req, res) => {
+  req.logout();
+  res.redirect('/');
+});
 
 const schema = makeAugmentedSchema({
   typeDefs,
@@ -54,7 +100,7 @@ const init = async (driver) => {
   await initializeDatabase(driver);
 };
 
-const startServer = async () => {
+(async () => {
   const server = new ApolloServer({
     context: { driver, neo4jDatabase: process.env.NEO4J_DATABASE },
     schema: schema,
@@ -75,6 +121,4 @@ const startServer = async () => {
       `🚀 Server ready at http://${host}:${port}${server.graphqlPath}`
     )
   );
-};
-
-startServer();
+})();
