@@ -51,6 +51,32 @@ const runQuery = async (query, context, resolveInfo) => {
 
 const resolvers = {
   Mutation: {
+    authenticate: async (obj, args, context, resolveInfo) => {
+      const { fieldName, id, displayName } = args;
+      const findUser = `
+      MATCH (u: User {${fieldName}: "${id}"})
+      RETURN u
+      `;
+      const createUser = `
+      CREATE (u:User:Contactable:ContentMetaReference { userId: apoc.create.uuid(), ${fieldName}: "${id}", displayName: "${displayName}" })
+      RETURN u
+      `;
+      let user;
+      try {
+        user = await runQuery(findUser, context, resolveInfo);
+        console.log(resolveInfo);
+        return {
+          accessToken: '123456789',
+          user,
+        };
+      } catch (error) {
+        user = await runQuery(createUser, context, resolveInfo);
+        return {
+          accessToken: '123456789',
+          user,
+        };
+      }
+    },
     userCreateBusiness: async (obj, args, context, resolveInfo) => {
       const {
         userId,

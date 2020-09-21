@@ -6,27 +6,16 @@ const neo4j = require('neo4j-driver');
 const { makeAugmentedSchema } = require('neo4j-graphql-js');
 const { typeDefs } = require('./graphql-schema');
 const { resolvers } = require('./graphql-resolvers');
-const passport = require('passport');
-require('./googleStrategy');
 
 const app = express();
 
 app.use(
   cookieSession({
+    name: 'greenwood-network-test',
     maxAge: 24 * 60 * 60 * 1000,
     keys: [process.env.COOKIE_SESSION_KEY],
   })
 );
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser((user, cb) => {
-  cb(null, user);
-});
-passport.deserializeUser((obj, cb) => {
-  cb(null, obj);
-});
 
 app.get('/', (req, res) => {
   res.send(
@@ -37,20 +26,6 @@ app.get('/', (req, res) => {
     ${JSON.stringify(req.user, null, 2)}
     `
   );
-});
-
-app.get(
-  '/auth/google',
-  passport.authenticate('google', { scope: ['email', 'profile'] }),
-  (req, res) => {}
-);
-
-app.get('/google_callback', passport.authenticate('google'), (req, res) => {
-  res.redirect('/');
-});
-app.get('/auth/logout', (req, res) => {
-  req.logout();
-  res.redirect('/');
 });
 
 const schema = makeAugmentedSchema({
