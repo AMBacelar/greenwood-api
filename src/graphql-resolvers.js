@@ -64,7 +64,6 @@ const resolvers = {
       let user;
       try {
         user = await runQuery(findUser, context, resolveInfo);
-        console.log(resolveInfo);
         return {
           accessToken: '123456789',
           user,
