@@ -87,7 +87,7 @@ const init = async (driver) => {
     playground: true,
   });
 
-  const port = process.env.GRAPHQL_SERVER_PORT || 4001;
+  const port = process.env.PORT || 4001;
   const path = process.env.GRAPHQL_SERVER_PATH || '/graphql';
 
   server.applyMiddleware({ app, path });
