@@ -1,5 +1,9 @@
 {
   "name": "greenwood-api",
+  "engines": {
+    "node": "10.13.0",
+    "npm": "6.14.8"
+  },
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
