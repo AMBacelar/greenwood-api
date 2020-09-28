@@ -62,7 +62,7 @@ const initializeDatabase = async (driver) => {
   const session = driver.session();
   try {
     console.log('connecting to session');
-    await session.writeTransaction((tx) => tx.run(initCypher));
+    await session.run(initCypher);
     await session.run(ReviewableQuery);
     console.log('Database initialized');
   } catch (error) {
@@ -89,15 +89,12 @@ const init = async (driver) => {
 
   const port = process.env.GRAPHQL_SERVER_PORT || 4001;
   const path = process.env.GRAPHQL_SERVER_PATH || '/graphql';
-  const host = process.env.GRAPHQL_SERVER_HOST || '0.0.0.0';
 
   server.applyMiddleware({ app, path });
 
   await init(driver);
 
-  app.listen({ host, port, path }, () =>
-    console.log(
-      `🚀 Server ready at http://${host}:${port}${server.graphqlPath}`
-    )
+  app.listen(port, () =>
+    console.log(`🚀 Server ready at :${port}${server.graphqlPath}`)
   );
 })();
