@@ -12,11 +12,11 @@ type User {
   manages: [Ownable]! @relation(name: "MANAGES", direction: "OUT")
   appearsIn: [MixedMedia]! @relation(name: "APPEARS_IN", direction: "OUT")
   numReviews: Int
-  @cypher(statement: "MATCH (this)-[:WROTE]->(r:Review) RETURN COUNT(r)")
+    @cypher(statement: "MATCH (this)-[:WROTE]->(r:Review) RETURN COUNT(r)")
   recommendations(first: Int = 3): [Business]
-  @cypher(
-    statement: "MATCH (this)-[:WROTE]->(r:Review)-[:REVIEWS]->(:Business)<-[:REVIEWS]-(:Review)<-[:WROTE]-(:User)-[:WROTE]->(:Review)-[:REVIEWS]->(rec:Business) WHERE NOT EXISTS( (this)-[:WROTE]->(:Review)-[:REVIEWS]->(rec) ) WITH rec, COUNT(*) AS num ORDER BY num DESC LIMIT $first RETURN rec"
-  )
+    @cypher(
+      statement: "MATCH (this)-[:WROTE]->(r:Review)-[:REVIEWS]->(:Business)<-[:REVIEWS]-(:Review)<-[:WROTE]-(:User)-[:WROTE]->(:Review)-[:REVIEWS]->(rec:Business) WHERE NOT EXISTS( (this)-[:WROTE]->(:Review)-[:REVIEWS]->(rec) ) WITH rec, COUNT(*) AS num ORDER BY num DESC LIMIT $first RETURN rec"
+    )
 }
 
 type Address {
@@ -64,14 +64,14 @@ type Business {
   dateCreated: Float
   slug: String
   avgStars: Float
-  @cypher(
-    statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
-  )
+    @cypher(
+      statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
+    )
   managedBy: [User] @relation(name: "MANAGES", direction: "IN")
   reviews: [Review] @relation(name: "REVIEWS", direction: "IN")
   references: [ContentMeta]! @relation(name: "META_REFERENCE", direction: "IN")
   categories: [BusinessCategory]
-  @relation(name: "IN_BUSINESS_CATEGORY", direction: "OUT")
+    @relation(name: "IN_BUSINESS_CATEGORY", direction: "OUT")
 }
 
 type Series {
@@ -84,9 +84,9 @@ type Series {
   content: [Content] @relation(name: "PART_OF", direction: "IN")
   reviews: [Review] @relation(name: "REVIEWS", direction: "IN")
   avgStars: Float
-  @cypher(
-    statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
-  )
+    @cypher(
+      statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
+    )
 }
 
 type Content {
@@ -101,9 +101,9 @@ type Content {
   series: [Series] @relation(name: "PART_OF", direction: "OUT")
   reviews: [Review] @relation(name: "REVIEWS", direction: "IN")
   avgStars: Float
-  @cypher(
-    statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
-  )
+    @cypher(
+      statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
+    )
   meta: [ContentMeta]! @relation(name: "HAS_META", direction: "OUT")
 }
 
@@ -113,7 +113,7 @@ type ContentMeta {
   contentMetaId: ID!
   role: String!
   reference: ContentMetaReference!
-  @relation(name: "META_REFERENCE", direction: "OUT")
+    @relation(name: "META_REFERENCE", direction: "OUT")
   content: Content! @relation(name: "HAS_META", direction: "IN")
 }
 
@@ -131,9 +131,9 @@ type Event {
   series: [Series] @relation(name: "PART_OF", direction: "OUT")
   reviews: [Review] @relation(name: "REVIEWS", direction: "IN")
   avgStars: Float
-  @cypher(
-    statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
-  )
+    @cypher(
+      statement: "MATCH (this)<-[:REVIEWS]-(r:Review) RETURN coalesce(avg(r.stars),0.0)"
+    )
 }
 
 type Venue {
@@ -160,7 +160,7 @@ type BusinessCategory {
   businessCategoryId: ID!
   name: String!
   businesses: [Business]
-  @relation(name: "IN_BUSINESS_CATEGORY", direction: "IN")
+    @relation(name: "IN_BUSINESS_CATEGORY", direction: "IN")
 }
 
 type RatingCount {
@@ -199,17 +199,14 @@ input SocialLinkInput {
   account: String!
 }
 
-type LoginResponse {
-  accessToken: String
-  user: User
-}
-
 type Mutation {
   authenticate(
     fieldName: String!
     id: String!
     displayName: String!
+    email: String!
   ): LoginResponse
+  refreshToken: RefreshTokenResponse!
   userCreateBusiness(input: BusinessInput): Business
   userCreateReview(
     stars: Float!
@@ -218,28 +215,53 @@ type Mutation {
     userId: ID!
     nodeName: String!
   ): Review
-  @cypher(
-    statement: """
-    CALL db.index.fulltext.queryNodes($nodeName, $targetId) YIELD node
-    match (u:User {userId: $userId})
-    create (u)-[x:WROTE]->(r:Review)-[:REVIEWS]->(node)
-    set r.stars = $stars
-    set r.text = $text
-    set r.reviewId = apoc.create.uuid()
-    return r
-    """
-  )
+    @cypher(
+      statement: """
+      CALL db.index.fulltext.queryNodes($nodeName, $targetId) YIELD node
+      match (u:User {userId: $userId})
+      create (u)-[x:WROTE]->(r:Review)-[:REVIEWS]->(node)
+      set r.stars = $stars
+      set r.text = $text
+      set r.reviewId = apoc.create.uuid()
+      return r
+      """
+    )
 
   mergeBusinessCategory(categories: [String!]!, businessId: ID!): Business
-  @cypher(
-    statement: "MATCH (b:Business {businessId: $businessId}) UNWIND $categories AS cat MERGE (c:BusinessCategory {name: cat}) MERGE (b)-[:IN_BUSINESS_CATEGORY]->(c) RETURN b"
-  )
+    @cypher(
+      statement: "MATCH (b:Business {businessId: $businessId}) UNWIND $categories AS cat MERGE (c:BusinessCategory {name: cat}) MERGE (b)-[:IN_BUSINESS_CATEGORY]->(c) RETURN b"
+    )
+}
+
+type LoginResponse {
+  accessToken: String
+  user: User
+}
+
+type RefreshTokenResponse {
+  accessToken: String
+  user: User
+  ok: Boolean
+}
+
+type HomePageResponse {
+  latestBusinesses: [Business]!
+  featuredBlog: Ownable
+  featuredBusinesses: [Business]!
+  featuredVideos: [Ownable]!
 }
 
 type Query {
+  authenticate(
+    fieldName: String!
+    id: String!
+    displayName: String!
+    email: String!
+  ): LoginResponse
+  refreshToken: RefreshTokenResponse!
   userCount: Int! @cypher(statement: "MATCH (u:User) RETURN COUNT(u)")
   ratingsCount: [RatingCount]
-  @cypher(
-    statement: "MATCH (r:Review) WITH r.stars AS stars, COUNT(*) AS count ORDER BY stars RETURN {stars: stars, count: count}"
-  )
+    @cypher(
+      statement: "MATCH (r:Review) WITH r.stars AS stars, COUNT(*) AS count ORDER BY stars RETURN {stars: stars, count: count}"
+    )
 }

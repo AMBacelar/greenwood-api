@@ -4,6 +4,9 @@ const _ = require('lodash');
 const { randomColor } = require('./utils/randomColour');
 const { slugify } = require('./utils/createSlug');
 const { result } = require('lodash');
+const { createAccessToken, createRefreshToken } = require('./utils/auth');
+const { sendRefreshToken } = require('./sendRefreshToken');
+const { verify } = require('jsonwebtoken');
 
 const buildSessionParams = (ctx) => {
   let paramObj = {};
@@ -18,7 +21,7 @@ const buildSessionParams = (ctx) => {
   return paramObj;
 };
 
-const runQuery = async (query, context, resolveInfo) => {
+const runQuery = async (query, context, resolveInfo, built = true) => {
   if (context.neo4jDatabase || context.neo4jBookmarks) {
     const sessionParams = buildSessionParams(context);
     try {
@@ -40,42 +43,76 @@ const runQuery = async (query, context, resolveInfo) => {
 
   let result;
 
-  try {
-    result = await session.writeTransaction((tx) => tx.run(query));
-    result = result.records[0].get(0);
-  } finally {
-    session.close();
-  }
-  return result.properties;
+  result = await session.writeTransaction((tx) => tx.run(query));
+  result = result.records[0].get(0);
+  session.close();
+  return built ? result.properties : result;
+};
+
+const authFunctions = {
+  authenticate: async (obj, args, context, resolveInfo) => {
+    const { fieldName, id, displayName, email } = args;
+    const findUser = `
+    MATCH (user: User {${fieldName}: "${id}"})
+    RETURN user { .userId, .displayName, contact: head([(user)-[:HAS_CONTACT]->(user_contact:Contact) | user_contact { .email }]) } AS user`;
+    const createUser = `
+    CREATE (user:User:Contactable:ContentMetaReference { userId: apoc.create.uuid(), ${fieldName}: "${id}", displayName: "${displayName}" })-[:HAS_CONTACT]->(c:Contact { contactId: apoc.create.uuid(), email: ["${email}"]})
+    RETURN user { .userId, .displayName, contact: head([(user)-[:HAS_CONTACT]->(user_contact:Contact) | user_contact { .email }]) } AS user`;
+    let user;
+    try {
+      user = await runQuery(findUser, context, resolveInfo, false);
+    } catch (error) {
+      user = await runQuery(createUser, context, resolveInfo, false);
+    } finally {
+      sendRefreshToken(context.res, createRefreshToken(user));
+      return {
+        accessToken: createAccessToken(user),
+        user,
+      };
+    }
+  },
+  refreshToken: async (obj, args, context, resolveInfo) => {
+    const token = context.req.cookies['grnwood-network-refresh'];
+    if (!token) {
+      return res.send({ ok: false, accessToken: '' });
+    }
+
+    let payload = null;
+    try {
+      payload = verify(token, process.env.REFRESH_TOKEN_SECRET);
+    } catch (err) {
+      console.log(err);
+      return res.send({ ok: false, accessToken: '' });
+    }
+
+    const findUser = `
+    MATCH (user: User { userId: "${payload.userId}"})
+    RETURN user { .userId, .displayName, contact: head([(user)-[:HAS_CONTACT]->(user_contact:Contact) | user_contact { .email }]) } AS user`;
+
+    let user;
+    try {
+      user = await runQuery(findUser, context, resolveInfo, false);
+    } catch (error) {
+      if (!user) {
+        return res.send({ ok: false, accessToken: '' });
+      }
+      console.log(error);
+    } finally {
+      sendRefreshToken(context.res, createRefreshToken(user));
+      return {
+        accessToken: createAccessToken(user),
+        ok: true,
+      };
+    }
+  },
 };
 
 const resolvers = {
+  Query: {
+    ...authFunctions,
+  },
   Mutation: {
-    authenticate: async (obj, args, context, resolveInfo) => {
-      const { fieldName, id, displayName } = args;
-      const findUser = `
-      MATCH (u: User {${fieldName}: "${id}"})
-      RETURN u
-      `;
-      const createUser = `
-      CREATE (u:User:Contactable:ContentMetaReference { userId: apoc.create.uuid(), ${fieldName}: "${id}", displayName: "${displayName}" })
-      RETURN u
-      `;
-      let user;
-      try {
-        user = await runQuery(findUser, context, resolveInfo);
-        return {
-          accessToken: '123456789',
-          user,
-        };
-      } catch (error) {
-        user = await runQuery(createUser, context, resolveInfo);
-        return {
-          accessToken: '123456789',
-          user,
-        };
-      }
-    },
+    ...authFunctions,
     userCreateBusiness: async (obj, args, context, resolveInfo) => {
       const {
         userId,

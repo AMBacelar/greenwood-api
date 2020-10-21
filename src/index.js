@@ -6,27 +6,30 @@ const neo4j = require('neo4j-driver');
 const { makeAugmentedSchema } = require('neo4j-graphql-js');
 const { typeDefs } = require('./graphql-schema');
 const { resolvers } = require('./graphql-resolvers');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
+const allowedOrigins = JSON.parse(process.env.ALLOWED_ORIGINS);
+
 app.use(
-  cookieSession({
-    name: 'greenwood-network-test',
-    maxAge: 24 * 60 * 60 * 1000,
-    keys: [process.env.COOKIE_SESSION_KEY],
+  cors({
+    origin: (origin, callback) => {
+      // allow requests with no origin
+      // (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
   })
 );
 
-app.get('/', (req, res) => {
-  res.send(
-    `
-    root page, try /auth/google
-
-    current User:
-    ${JSON.stringify(req.user, null, 2)}
-    `
-  );
-});
+app.use(cookieParser());
 
 const schema = makeAugmentedSchema({
   typeDefs,
@@ -79,9 +82,21 @@ const init = async (driver) => {
   await initializeDatabase(driver);
 };
 
+app.get('/', (req, res) => {
+  res.send(JSON.stringify(req.headers));
+});
+
 (async () => {
   const server = new ApolloServer({
-    context: { driver, neo4jDatabase: process.env.NEO4J_DATABASE },
+    context: ({ req, res }) => {
+      console.log('every request', req.cookies, req.signedCookies);
+      return {
+        driver,
+        neo4jDatabase: process.env.NEO4J_DATABASE,
+        req,
+        res,
+      };
+    },
     schema: schema,
     introspection: true,
     playground: true,
